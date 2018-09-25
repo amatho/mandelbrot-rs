@@ -1,1 +1,0 @@
-c:\Users\Amandus\Projects\rust\mandelbrot\target\rls\debug\libmandelbrot-1bedd5e7ef5909eb.rmeta: c:\Users\Amandus\Projects\rust\mandelbrot\src\complex.rs c:\Users\Amandus\Projects\rust\mandelbrot\src\main.rs

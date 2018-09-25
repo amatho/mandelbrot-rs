@@ -40,7 +40,7 @@ impl<T: Default> Complex<T> {
 }
 
 impl<T: fmt::Display> fmt::Display for Complex<T> {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 		write!(f, "{}+{}i", self.re, self.im)
 	}
 }

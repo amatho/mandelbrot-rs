@@ -1,8 +1,6 @@
-mod complex;
+use mandelbrot::complex::Complex;
 
 fn main() {
-    let mut test = complex::Complex::<u8>::identity();
-    test += complex::Complex { re: 1, im: 2 };
-
-    println!("Value of test: {}", test);
+    println!("Identity complex: {}", Complex::<i32>::identity());
+    println!("Negative complex: {}", Complex { re: 1, im: -2 });
 }

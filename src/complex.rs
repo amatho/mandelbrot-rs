@@ -2,12 +2,27 @@ use std::fmt;
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign};
 
 /// Data representation of a complex number
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq, Default, Copy, Clone)]
 pub struct Complex<T> {
 	/// The real component
 	pub re: T,
 	/// The imaginary component
 	pub im: T,
+}
+
+impl<T> Complex<T> {
+	pub fn new(re: T, im: T) -> Complex<T> {
+		Complex { re, im }
+	}
+}
+
+impl<T> Complex<T>
+where
+	T: Clone + Mul<Output = T> + Add<Output = T>,
+{
+	pub fn abs_squared(&self) -> T {
+		self.re.clone() * self.re.clone() + self.im.clone() * self.im.clone()
+	}
 }
 
 // Macro for implementing Add and Sub.
@@ -122,10 +137,7 @@ where
 
 impl<T: Default> Complex<T> {
 	pub fn identity() -> Complex<T> {
-		Complex {
-			re: Default::default(),
-			im: Default::default(),
-		}
+		Complex::default()
 	}
 }
 

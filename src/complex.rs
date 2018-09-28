@@ -10,6 +10,8 @@ pub struct Complex<T> {
 	pub im: T,
 }
 
+pub type Complexf64 = Complex<f64>;
+
 impl<T> Complex<T> {
 	pub fn new(re: T, im: T) -> Complex<T> {
 		Complex { re, im }

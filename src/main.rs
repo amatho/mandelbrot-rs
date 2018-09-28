@@ -1,9 +1,14 @@
 use mandelbrot;
 use mandelbrot::complex::Complex;
+use mandelbrot::complex::Complexf64;
+
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::Color;
 use sdl2::pixels::PixelFormatEnum;
+use sdl2::render::Canvas;
+use sdl2::video::Window;
+
 use std::env;
 use std::str::FromStr;
 
@@ -17,7 +22,7 @@ fn parse_pair<T: FromStr>(s: &str, separator: char) -> Option<(T, T)> {
     }
 }
 
-fn parse_complex(s: &str) -> Option<Complex<f64>> {
+fn parse_complex(s: &str) -> Option<Complexf64> {
     match parse_pair(s, ',') {
         None => None,
         Some((re, im)) => Some(Complex::new(re, im)),
@@ -37,13 +42,10 @@ fn main() {
     let upper_left = parse_complex(&args[2]).expect("error parsing upper left corner point");
     let lower_right = parse_complex(&args[3]).expect("error parsing lower right corner point");
 
-    let mut pixels = vec![0; bounds.0 * bounds.1];
-
-    mandelbrot::render(&mut pixels, bounds, upper_left, lower_right);
-    sdl_setup(&pixels, bounds);
+    sdl_setup(bounds, upper_left, lower_right);
 }
 
-fn sdl_setup(pixels: &[u8], bounds: (usize, usize)) {
+fn sdl_setup(bounds: (usize, usize), mut upper_left: Complexf64, mut lower_right: Complexf64) {
     let sdl_context = sdl2::init().unwrap();
     let video_subsystem = sdl_context.video().unwrap();
 
@@ -59,29 +61,7 @@ fn sdl_setup(pixels: &[u8], bounds: (usize, usize)) {
     canvas.clear();
     canvas.present();
 
-    let mut rgb_pixels = vec![0; bounds.0 * bounds.1 * 4];
-
-    for row in 0..bounds.1 {
-        for column in 0..bounds.0 {
-            let index = row * bounds.0 + column;
-            let pixel = pixels[index];
-            rgb_pixels[index * 4] = pixel;
-            rgb_pixels[index * 4 + 1] = pixel;
-            rgb_pixels[index * 4 + 2] = pixel;
-            rgb_pixels[index * 4 + 3] = pixel;
-        }
-    }
-
-    let creator = canvas.texture_creator();
-    let mut texture = creator
-        .create_texture_streaming(
-            Some(PixelFormatEnum::RGBA8888),
-            bounds.0 as u32,
-            bounds.1 as u32,
-        ).unwrap();
-    texture.update(None, &rgb_pixels, bounds.0 * 4).unwrap();
-    canvas.copy(&texture, None, None).unwrap();
-    canvas.present();
+    render_texture(&mut canvas, bounds, upper_left, lower_right);
 
     let mut event_pump = sdl_context.event_pump().unwrap();
     'running: loop {
@@ -92,8 +72,44 @@ fn sdl_setup(pixels: &[u8], bounds: (usize, usize)) {
                     keycode: Some(Keycode::Escape),
                     ..
                 } => break 'running,
+                Event::KeyDown {
+                    keycode: Some(k), ..
+                } => {
+                    let (ul_transform, lr_transform) = match k {
+                        Keycode::Up => (Complex::new(0.05, -0.05), Complex::new(-0.05, 0.05)),
+                        Keycode::Down => (Complex::new(-0.05, 0.05), Complex::new(0.05, -0.05)),
+                        Keycode::A => (Complex::new(-0.05, 0.0), Complex::new(-0.05, 0.0)),
+                        _ => continue 'running,
+                    };
+
+                    upper_left += ul_transform;
+                    lower_right += lr_transform;
+
+                    render_texture(&mut canvas, bounds, upper_left, lower_right);
+                }
                 _ => {}
             }
         }
     }
+}
+
+fn render_texture(
+    canvas: &mut Canvas<Window>,
+    bounds: (usize, usize),
+    upper_left: Complexf64,
+    lower_right: Complexf64,
+) {
+    let mut pixels = vec![0; bounds.0 * bounds.1 * 4];
+    mandelbrot::render(&mut pixels, bounds, upper_left, lower_right);
+
+    let creator = canvas.texture_creator();
+    let mut texture = creator
+        .create_texture_static(
+            Some(PixelFormatEnum::RGBA8888),
+            bounds.0 as u32,
+            bounds.1 as u32,
+        ).unwrap();
+    texture.update(None, &pixels, bounds.0 * 4).unwrap();
+    canvas.copy(&texture, None, None).unwrap();
+    canvas.present();
 }

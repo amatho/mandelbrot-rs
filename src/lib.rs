@@ -47,16 +47,22 @@ pub fn render(
     upper_left: Complex<f64>,
     lower_right: Complex<f64>,
 ) {
-    assert!(pixels.len() == bounds.0 * bounds.1);
+    assert!(pixels.len() == bounds.0 * bounds.1 * 4);
 
     for row in 0..bounds.1 {
         for column in 0..bounds.0 {
             let point = pixel_to_point(bounds, (column, row), upper_left, lower_right);
 
-            pixels[row * bounds.0 + column] = match member(point, 255) {
+            let pixel = match member(point, 255) {
                 Membership::Yes => 0,
                 Membership::No(count) => 255 - count as u8,
             };
+
+            let index = row * bounds.0 + column;
+            pixels[index * 4] = 255;
+            pixels[index * 4 + 1] = pixel;
+            pixels[index * 4 + 2] = pixel;
+            pixels[index * 4 + 3] = pixel;
         }
     }
 }

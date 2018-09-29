@@ -27,6 +27,12 @@ where
 	}
 }
 
+impl Complex<f64> {
+	pub fn abs(&self) -> f64 {
+		(self.re.powi(2) + self.im.powi(2)).sqrt()
+	}
+}
+
 // Macro for implementing Add and Sub.
 // $trt is which of the two traits to implement, $fn_name is
 // the function name required for the implementation.

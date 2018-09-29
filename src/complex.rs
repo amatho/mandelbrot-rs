@@ -10,7 +10,8 @@ pub struct Complex<T> {
 	pub im: T,
 }
 
-pub type Complexf64 = Complex<f64>;
+pub type Complex32 = Complex<f32>;
+pub type Complex64 = Complex<f64>;
 
 impl<T> Complex<T> {
 	pub fn new(re: T, im: T) -> Complex<T> {
@@ -27,8 +28,14 @@ where
 	}
 }
 
-impl Complex<f64> {
-	pub fn abs(&self) -> f64 {
+impl Complex32 {
+	pub fn abs(self) -> f32 {
+		(self.re.powi(2) + self.im.powi(2)).sqrt()
+	}
+}
+
+impl Complex64 {
+	pub fn abs(self) -> f64 {
 		(self.re.powi(2) + self.im.powi(2)).sqrt()
 	}
 }
@@ -140,6 +147,20 @@ where
 
 		self.re = (a * c + b * d) / divisor;
 		self.im = (b * c - a * d) / divisor;
+	}
+}
+
+impl<T> Mul<T> for Complex<T>
+where
+	T: Mul<Output = T> + Copy,
+{
+	type Output = Complex<T>;
+
+	fn mul(self, other: T) -> Complex<T> {
+		Complex {
+			re: self.re * other,
+			im: self.im * other,
+		}
 	}
 }
 

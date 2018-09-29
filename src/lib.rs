@@ -5,5 +5,5 @@ mod sdl;
 #[cfg(test)]
 mod tests;
 
-pub use self::complex::{Complex, Complexf64};
+pub use self::complex::{Complex, Complex64};
 pub use self::sdl::start as run;

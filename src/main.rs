@@ -1,6 +1,6 @@
 use mandelbrot;
 use mandelbrot::complex::Complex;
-use mandelbrot::complex::Complexf64;
+use mandelbrot::complex::Complex64;
 
 use std::env;
 use std::str::FromStr;
@@ -15,7 +15,7 @@ fn parse_pair<T: FromStr>(s: &str, separator: char) -> Option<(T, T)> {
     }
 }
 
-fn parse_complex(s: &str) -> Option<Complexf64> {
+fn parse_complex(s: &str) -> Option<Complex64> {
     match parse_pair(s, ',') {
         None => None,
         Some((re, im)) => Some(Complex::new(re, im)),

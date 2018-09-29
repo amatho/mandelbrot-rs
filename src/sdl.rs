@@ -1,6 +1,6 @@
 use super::member::{self, Membership};
 use super::Complex;
-use super::Complexf64;
+use super::Complex64;
 use crossbeam_utils::thread;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
@@ -10,7 +10,7 @@ use sdl2::render::Canvas;
 use sdl2::render::Texture;
 use sdl2::video::Window;
 
-pub fn start(bounds: (usize, usize), mut upper_left: Complexf64, mut lower_right: Complexf64) {
+pub fn start(bounds: (usize, usize), mut upper_left: Complex64, mut lower_right: Complex64) {
     let sdl_context = sdl2::init().unwrap();
     let video_subsystem = sdl_context.video().unwrap();
 
@@ -47,10 +47,17 @@ pub fn start(bounds: (usize, usize), mut upper_left: Complexf64, mut lower_right
                     keycode: Some(k), ..
                 } => {
                     let step = 0.02;
+                    let zoom_step = 0.01;
 
                     let (ul_transform, lr_transform) = match k {
-                        Keycode::Up => (Complex::new(0.05, -0.05), Complex::new(-0.05, 0.05)),
-                        Keycode::Down => (Complex::new(-0.05, 0.05), Complex::new(0.05, -0.05)),
+                        Keycode::Up => (
+                            Complex::new(zoom_step, -zoom_step),
+                            Complex::new(-zoom_step, zoom_step),
+                        ),
+                        Keycode::Down => (
+                            Complex::new(-zoom_step, zoom_step),
+                            Complex::new(zoom_step, -zoom_step),
+                        ),
                         Keycode::A => (Complex::new(-step, 0.0), Complex::new(-step, 0.0)),
                         Keycode::D => (Complex::new(step, 0.0), Complex::new(step, 0.0)),
                         Keycode::S => (Complex::new(0.0, -step), Complex::new(0.0, -step)),
@@ -84,24 +91,24 @@ fn pixel_to_point(
     }
 }
 
-pub fn calculate_pixels(
-    pixels: &mut [u8],
+pub fn calculate_escape_times(
+    times: &mut [u8],
     bounds: (usize, usize),
     upper_left: Complex<f64>,
     lower_right: Complex<f64>,
 ) {
-    assert!(pixels.len() == bounds.0 * bounds.1);
+    assert!(times.len() == bounds.0 * bounds.1);
 
     for row in 0..bounds.1 {
         for column in 0..bounds.0 {
             let point = pixel_to_point(bounds, (column, row), upper_left, lower_right);
 
-            let pixel = match member::calculate(point, 255) {
-                Membership::Yes => 0,
-                Membership::No(count) => 255 - count as u8,
+            let time = match member::calculate(point, 254) {
+                Membership::Yes => 255,
+                Membership::No(count) => count as u8,
             };
 
-            pixels[row * bounds.0 + column] = pixel;
+            times[row * bounds.0 + column] = time;
         }
     }
 }
@@ -110,15 +117,15 @@ fn render_texture(
     canvas: &mut Canvas<Window>,
     texture: &mut Texture,
     bounds: (usize, usize),
-    upper_left: Complexf64,
-    lower_right: Complexf64,
+    upper_left: Complex64,
+    lower_right: Complex64,
 ) {
     let threads = sdl2::cpuinfo::cpu_count() as usize;
 
     let rows_per_band = bounds.1 / threads + 1;
 
-    let mut pixels = vec![0; bounds.0 * bounds.1];
-    let bands: Vec<&mut [u8]> = pixels.chunks_mut(rows_per_band * bounds.0).collect();
+    let mut escape_times = vec![0; bounds.0 * bounds.1];
+    let bands: Vec<&mut [u8]> = escape_times.chunks_mut(rows_per_band * bounds.0).collect();
 
     thread::scope(|spawner| {
         for (i, band) in bands.into_iter().enumerate() {
@@ -130,7 +137,7 @@ fn render_texture(
                 pixel_to_point(bounds, (bounds.0, top + height), upper_left, lower_right);
 
             spawner.spawn(move || {
-                calculate_pixels(band, band_bounds, band_upper_left, band_lower_right);
+                calculate_escape_times(band, band_bounds, band_upper_left, band_lower_right);
             });
         }
     });
@@ -140,10 +147,21 @@ fn render_texture(
             for row in 0..bounds.1 {
                 for column in 0..bounds.0 {
                     let offset = row * pitch + column * 3;
-                    let pixel = pixels[row * bounds.0 + column];
-                    buffer[offset] = pixel;
-                    buffer[offset + 1] = pixel;
-                    buffer[offset + 2] = pixel;
+                    let time = escape_times[row * bounds.0 + column];
+
+                    let color = if time == 255 {
+                        (0, 0, 0)
+                    } else if time < 128 {
+                        let c = time * 2;
+                        (c, 0, 0)
+                    } else {
+                        let c = (time % 128) * 2;
+                        (255, c, c)
+                    };
+
+                    buffer[offset] = color.0;
+                    buffer[offset + 1] = color.1;
+                    buffer[offset + 2] = color.2;
                 }
             }
         })

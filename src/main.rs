@@ -31,7 +31,7 @@ fn main() {
         let upper_left = Complex::new(-1.95, 1.15);
 
         (bounds, upper_left)
-    } else if args.len() != 4 {
+    } else if args.len() != 3 {
         eprintln!("Usage: mandelbrot PIXELS UPPERLEFT");
         eprintln!("Example: {} 800x800 -1.95,1.15", args[0]);
         std::process::exit(1);

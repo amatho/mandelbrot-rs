@@ -10,7 +10,7 @@ use sdl2::render::Canvas;
 use sdl2::render::Texture;
 use sdl2::video::Window;
 
-pub fn start(bounds: (usize, usize), mut upper_left: Complex64, mut lower_right: Complex64) {
+pub fn start(bounds: (usize, usize), mut upper_left: Complex64) {
     let sdl_context = sdl2::init().unwrap();
     let video_subsystem = sdl_context.video().unwrap();
 
@@ -32,7 +32,9 @@ pub fn start(bounds: (usize, usize), mut upper_left: Complex64, mut lower_right:
         .create_texture_streaming(PixelFormatEnum::RGB24, bounds.0 as u32, bounds.1 as u32)
         .unwrap();
 
-    render_texture(&mut canvas, &mut texture, bounds, upper_left, lower_right);
+    // At this pixel_delta you can see approx. the entire set
+    let mut pixel_delta = 0.003_138_428_376_721;
+    render_texture(&mut canvas, &mut texture, bounds, upper_left, pixel_delta);
 
     let mut event_pump = sdl_context.event_pump().unwrap();
     'running: loop {
@@ -46,29 +48,58 @@ pub fn start(bounds: (usize, usize), mut upper_left: Complex64, mut lower_right:
                 Event::KeyDown {
                     keycode: Some(k), ..
                 } => {
-                    let step = 0.02;
-                    let zoom_step = 0.01;
+                    let keyboard_mappings = [
+                        Keycode::Up,
+                        Keycode::Down,
+                        Keycode::W,
+                        Keycode::S,
+                        Keycode::A,
+                        Keycode::D,
+                    ];
 
-                    let (ul_transform, lr_transform) = match k {
-                        Keycode::Up => (
-                            Complex::new(zoom_step, -zoom_step),
-                            Complex::new(-zoom_step, zoom_step),
-                        ),
-                        Keycode::Down => (
-                            Complex::new(-zoom_step, zoom_step),
-                            Complex::new(zoom_step, -zoom_step),
-                        ),
-                        Keycode::A => (Complex::new(-step, 0.0), Complex::new(-step, 0.0)),
-                        Keycode::D => (Complex::new(step, 0.0), Complex::new(step, 0.0)),
-                        Keycode::S => (Complex::new(0.0, -step), Complex::new(0.0, -step)),
-                        Keycode::W => (Complex::new(0.0, step), Complex::new(0.0, step)),
-                        _ => continue 'running,
+                    if !keyboard_mappings.contains(&k) {
+                        continue 'running;
+                    }
+
+                    let shortest_bound = if bounds.0 < bounds.1 {
+                        bounds.0
+                    } else {
+                        bounds.1
                     };
 
-                    upper_left += ul_transform;
-                    lower_right += lr_transform;
+                    let step = pixel_delta * (shortest_bound / 10) as f64;
+                    let zoom_factor = 1.1;
 
-                    render_texture(&mut canvas, &mut texture, bounds, upper_left, lower_right);
+                    let mut transform_re = 0.0;
+                    let mut transform_im = 0.0;
+
+                    if k == Keycode::Up {
+                        pixel_delta /= zoom_factor;
+                        transform_re += pixel_delta * (bounds.0 / 18) as f64;
+                        transform_im -= pixel_delta * (bounds.1 / 18) as f64;
+                    }
+                    if k == Keycode::Down {
+                        pixel_delta *= zoom_factor;
+                        transform_re -= pixel_delta * (bounds.0 / 18) as f64;
+                        transform_im += pixel_delta * (bounds.1 / 18) as f64;
+                    }
+                    if k == Keycode::A {
+                        transform_re -= step;
+                    }
+                    if k == Keycode::D {
+                        transform_re += step;
+                    }
+                    if k == Keycode::S {
+                        transform_im -= step;
+                    }
+                    if k == Keycode::W {
+                        transform_im += step;
+                    }
+
+                    upper_left.transform(transform_re, transform_im);
+                    println!("New pos: {}", upper_left);
+
+                    render_texture(&mut canvas, &mut texture, bounds, upper_left, pixel_delta);
                 }
                 _ => {}
             }
@@ -80,28 +111,28 @@ fn pixel_to_point(
     bounds: (usize, usize),
     pixel: (usize, usize),
     upper_left: Complex<f64>,
-    lower_right: Complex<f64>,
+    pixel_delta: f64,
 ) -> Complex<f64> {
-    let width = lower_right.re - upper_left.re;
-    let height = upper_left.im - lower_right.im;
+    assert!(pixel.0 < bounds.0);
+    assert!(pixel.1 < bounds.1);
 
-    Complex {
-        re: upper_left.re + pixel.0 as f64 * width / bounds.0 as f64,
-        im: upper_left.im - pixel.1 as f64 * height / bounds.1 as f64,
-    }
+    let re = upper_left.re + pixel_delta * pixel.0 as f64;
+    let im = upper_left.im - pixel_delta * pixel.1 as f64;
+
+    Complex::new(re, im)
 }
 
 pub fn calculate_escape_times(
     times: &mut [u8],
     bounds: (usize, usize),
     upper_left: Complex<f64>,
-    lower_right: Complex<f64>,
+    pixel_delta: f64,
 ) {
     assert!(times.len() == bounds.0 * bounds.1);
 
     for row in 0..bounds.1 {
         for column in 0..bounds.0 {
-            let point = pixel_to_point(bounds, (column, row), upper_left, lower_right);
+            let point = pixel_to_point(bounds, (column, row), upper_left, pixel_delta);
 
             let time = match member::calculate(point, 254) {
                 Membership::Yes => 255,
@@ -118,7 +149,7 @@ fn render_texture(
     texture: &mut Texture,
     bounds: (usize, usize),
     upper_left: Complex64,
-    lower_right: Complex64,
+    pixel_delta: f64,
 ) {
     let threads = sdl2::cpuinfo::cpu_count() as usize;
 
@@ -132,12 +163,10 @@ fn render_texture(
             let top = rows_per_band * i;
             let height = band.len() / bounds.0;
             let band_bounds = (bounds.0, height);
-            let band_upper_left = pixel_to_point(bounds, (0, top), upper_left, lower_right);
-            let band_lower_right =
-                pixel_to_point(bounds, (bounds.0, top + height), upper_left, lower_right);
+            let band_upper_left = pixel_to_point(bounds, (0, top), upper_left, pixel_delta);
 
             spawner.spawn(move || {
-                calculate_escape_times(band, band_bounds, band_upper_left, band_lower_right);
+                calculate_escape_times(band, band_bounds, band_upper_left, pixel_delta);
             });
         }
     });

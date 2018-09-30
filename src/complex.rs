@@ -40,6 +40,24 @@ impl Complex64 {
 	}
 }
 
+impl<T> Complex<T>
+where
+	T: AddAssign,
+{
+	pub fn transform(&mut self, re: T, im: T) {
+		self.re += re;
+		self.im += im;
+	}
+
+	pub fn transform_re(&mut self, re: T) {
+		self.re += re;
+	}
+
+	pub fn transform_im(&mut self, im: T) {
+		self.im += im;
+	}
+}
+
 // Macro for implementing Add and Sub.
 // $trt is which of the two traits to implement, $fn_name is
 // the function name required for the implementation.

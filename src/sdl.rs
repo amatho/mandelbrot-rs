@@ -110,9 +110,9 @@ pub fn start(bounds: (usize, usize), mut upper_left: Complex64) {
 fn pixel_to_point(
     bounds: (usize, usize),
     pixel: (usize, usize),
-    upper_left: Complex<f64>,
+    upper_left: Complex64,
     pixel_delta: f64,
-) -> Complex<f64> {
+) -> Complex64 {
     assert!(pixel.0 < bounds.0);
     assert!(pixel.1 < bounds.1);
 
@@ -125,7 +125,7 @@ fn pixel_to_point(
 pub fn calculate_escape_times(
     times: &mut [u8],
     bounds: (usize, usize),
-    upper_left: Complex<f64>,
+    upper_left: Complex64,
     pixel_delta: f64,
 ) {
     assert!(times.len() == bounds.0 * bounds.1);

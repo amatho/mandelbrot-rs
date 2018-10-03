@@ -1,10 +1,18 @@
 use crate::Complex64;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
-use sdl2::pixels::Color;
 use sdl2::pixels::PixelFormatEnum;
 
 mod render;
+
+fn find_sdl_gl_driver() -> Option<u32> {
+    for (index, item) in sdl2::render::drivers().enumerate() {
+        if item.name == "opengl" {
+            return Some(index as u32);
+        }
+    }
+    None
+}
 
 pub fn start(bounds: (usize, usize), mut upper_left: Complex64) {
     let sdl_context = sdl2::init().unwrap();
@@ -13,14 +21,24 @@ pub fn start(bounds: (usize, usize), mut upper_left: Complex64) {
     let window = video_subsystem
         .window("Mandelbrot Visualization", bounds.0 as u32, bounds.1 as u32)
         .position_centered()
-        .vulkan()
+        .opengl()
         .build()
         .unwrap();
 
-    let mut canvas = window.into_canvas().build().unwrap();
+    let mut canvas = window
+        .into_canvas()
+        .index(find_sdl_gl_driver().unwrap())
+        .build()
+        .unwrap();
 
-    canvas.set_draw_color(Color::RGB(0, 0, 0));
-    canvas.clear();
+    gl::load_with(|name| video_subsystem.gl_get_proc_address(name) as *const _);
+    canvas.window().gl_set_context_to_current().unwrap();
+
+    unsafe {
+        gl::ClearColor(0.0, 0.0, 0.0, 1.0);
+        gl::Clear(gl::COLOR_BUFFER_BIT);
+    }
+
     canvas.present();
 
     let creator = canvas.texture_creator();

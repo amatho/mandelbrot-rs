@@ -1,3 +1,5 @@
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 use mandelbrot::{self, Complex, Complex64};
 
 use std::env;

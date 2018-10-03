@@ -72,7 +72,7 @@ pub fn start(bounds: (usize, usize), mut upper_left: Complex64) {
                     ];
 
                     if !keyboard_mappings.contains(&k) {
-                        continue 'running;
+                        continue;
                     }
 
                     let shortest_bound = if bounds.0 < bounds.1 {

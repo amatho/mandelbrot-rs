@@ -6,6 +6,8 @@ use sdl2::render::Canvas;
 use sdl2::render::Texture;
 use sdl2::video::Window;
 
+const MAX_ITERATIONS: u32 = 256;
+
 pub fn render_texture(
     canvas: &mut Canvas<Window>,
     texture: &mut Texture,
@@ -17,8 +19,8 @@ pub fn render_texture(
 
     let rows_per_band = bounds.1 / threads + 1;
 
-    let mut escape_times = vec![0; bounds.0 * bounds.1];
-    let bands: Vec<&mut [u8]> = escape_times.chunks_mut(rows_per_band * bounds.0).collect();
+    let mut memberships = vec![Membership::No(0); bounds.0 * bounds.1];
+    let bands: Vec<&mut [Membership]> = memberships.chunks_mut(rows_per_band * bounds.0).collect();
 
     thread::scope(|spawner| {
         for (i, band) in bands.into_iter().enumerate() {
@@ -28,7 +30,7 @@ pub fn render_texture(
             let band_upper_left = pixel_to_point(bounds, (0, top), upper_left, pixel_delta);
 
             spawner.spawn(move || {
-                calculate_escape_times(band, band_bounds, band_upper_left, pixel_delta);
+                map_membership(band, band_bounds, band_upper_left, pixel_delta);
             });
         }
     });
@@ -38,16 +40,26 @@ pub fn render_texture(
             for row in 0..bounds.1 {
                 for column in 0..bounds.0 {
                     let offset = row * pitch + column * 3;
-                    let time = escape_times[row * bounds.0 + column];
+                    let membership = memberships[row * bounds.0 + column];
 
-                    let color = if time == 255 {
-                        (0, 0, 0)
-                    } else if time < 128 {
-                        let c = time * 2;
-                        (c, 0, 0)
-                    } else {
-                        let c = (time % 128) * 2;
-                        (255, c, c)
+                    // Use the formula q = (x + y - 1) / y for dividing MAX_ITERATIONS with 2 and ceiling the output.
+                    // We ceil the output since a floored number (which is the normal behaviour) would make
+                    // `iterations % halfway` yield a 0, which produces some red color where it's supposed to be
+                    // totally white ((255, 0, 0) instead of (255, 255, 255))
+                    let halfway = (MAX_ITERATIONS + 2 - 1) / 2;
+                    let color_factor = 255.0 / f64::from(halfway);
+
+                    let color = match membership {
+                        Membership::Yes => (0, 0, 0),
+                        Membership::No(iterations) if iterations < halfway => {
+                            let c = (f64::from(iterations) * color_factor).round() as u8;
+                            (c, 0, 0)
+                        }
+                        Membership::No(iterations) => {
+                            let iter_after_halfway = iterations % halfway;
+                            let c = (f64::from(iter_after_halfway) * color_factor).round() as u8;
+                            (255, c, c)
+                        }
                     };
 
                     buffer[offset] = color.0;
@@ -77,24 +89,19 @@ fn pixel_to_point(
     Complex::new(re, im)
 }
 
-pub fn calculate_escape_times(
-    times: &mut [u8],
+pub fn map_membership(
+    memberships: &mut [Membership],
     bounds: (usize, usize),
     upper_left: Complex64,
     pixel_delta: f64,
 ) {
-    assert!(times.len() == bounds.0 * bounds.1);
+    assert!(memberships.len() == bounds.0 * bounds.1);
 
     for row in 0..bounds.1 {
         for column in 0..bounds.0 {
             let point = pixel_to_point(bounds, (column, row), upper_left, pixel_delta);
 
-            let time = match member::calculate(point, 254) {
-                Membership::Yes => 255,
-                Membership::No(count) => count as u8,
-            };
-
-            times[row * bounds.0 + column] = time;
+            memberships[row * bounds.0 + column] = member::calculate(point, MAX_ITERATIONS);
         }
     }
 }

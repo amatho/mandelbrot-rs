@@ -16,10 +16,10 @@ pub fn calculate(c: Complex64, limit: u32) -> Membership {
     let mut z = c;
 
     for i in 0..limit {
-        z = z * z + c;
         if z.abs_squared() > 4.0 {
             return Membership::No(i);
         }
+        z = z * z + c;
     }
 
     Membership::Yes

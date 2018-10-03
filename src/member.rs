@@ -1,9 +1,9 @@
-use super::complex::Complex;
 use super::complex::Complex64;
 
 /// Enum for representing a complex number's membership in the Mandelbrot set.
 /// The `No(u32)` variant contains the number of tries before deciding that this
 /// number is not part of the set.
+#[derive(Copy, Clone)]
 pub enum Membership {
     Yes,
     No(u32),
@@ -13,7 +13,7 @@ pub enum Membership {
 /// Use `limit` number of tries before deciding that `c` probably is part of the
 /// set.
 pub fn calculate(c: Complex64, limit: u32) -> Membership {
-    let mut z = Complex::identity();
+    let mut z = c;
 
     for i in 0..limit {
         z = z * z + c;

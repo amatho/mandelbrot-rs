@@ -1,10 +1,9 @@
-use mandelbrot;
-use mandelbrot::complex::Complex;
-use mandelbrot::complex::Complex64;
+use mandelbrot::{self, Complex, Complex64};
 
 use std::env;
 use std::str::FromStr;
 
+// Parse a pair from a given string, using the given separator to determine which values to parse
 fn parse_pair<T: FromStr>(s: &str, separator: char) -> Option<(T, T)> {
     match s.find(separator) {
         None => None,
@@ -15,6 +14,7 @@ fn parse_pair<T: FromStr>(s: &str, separator: char) -> Option<(T, T)> {
     }
 }
 
+// Parse a pair and create a new complex number from the parsed values
 fn parse_complex(s: &str) -> Option<Complex64> {
     match parse_pair(s, ',') {
         None => None,
@@ -22,24 +22,42 @@ fn parse_complex(s: &str) -> Option<Complex64> {
     }
 }
 
+// Prints program usage and exits with a non-zero exit code
+fn usage_and_exit(program_path: &str) -> ! {
+    eprintln!("Usage: mandelbrot PIXELS UPPERLEFT");
+    eprintln!("Example: {} 800x800 -1.95,1.15", program_path);
+    eprintln!("PIXELS and/or UPPERLEFT are optional, and will use default values if omitted.");
+    std::process::exit(1);
+}
+
 fn main() {
-    let args: Vec<_> = env::args().collect();
+    let mut args_iter = env::args();
+    let program_path = args_iter.next().unwrap();
+    let args: Vec<_> = args_iter.collect();
 
-    let (bounds, upper_left) = if args.len() == 1 {
-        println!("Running with default arguments: 800x800 -1.95,1.15");
-        let bounds = (800, 800);
-        let upper_left = Complex::new(-1.95, 1.15);
+    // Check how many command line arguments were given.
+    // If any arguments are submitted we use default values.
+    let (bounds, upper_left) = match args.len() {
+        0 => {
+            println!("Running with default arguments: 800x800 -1.95,1.15");
+            let bounds = (800, 800);
+            let upper_left = Complex::new(-1.95, 1.15);
 
-        (bounds, upper_left)
-    } else if args.len() != 3 {
-        eprintln!("Usage: mandelbrot PIXELS UPPERLEFT");
-        eprintln!("Example: {} 800x800 -1.95,1.15", args[0]);
-        std::process::exit(1);
-    } else {
-        let bounds = parse_pair(&args[1], 'x').expect("error parsing image dimensions");
-        let upper_left = parse_complex(&args[2]).expect("error parsing upper left corner point");
+            (bounds, upper_left)
+        }
+        1 => match (parse_pair(&args[0], 'x'), parse_complex(&args[0])) {
+            (Some(b), None) => (b, Complex::new(-1.95, 1.15)),
+            (None, Some(c)) => ((800, 800), c),
+            _ => usage_and_exit(&program_path),
+        },
+        2 => {
+            let bounds = parse_pair(&args[0], 'x').expect("error parsing image dimensions");
+            let upper_left =
+                parse_complex(&args[1]).expect("error parsing upper left corner point");
 
-        (bounds, upper_left)
+            (bounds, upper_left)
+        }
+        _ => usage_and_exit(&program_path),
     };
 
     mandelbrot::run(bounds, upper_left);

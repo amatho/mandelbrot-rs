@@ -5,9 +5,9 @@ authors = ["Amandus Thorsrud <ama.thorsrud@gmail.com>"]
 edition = "2018"
 
 [dependencies]
+sdl2 = "0.31.0"
 gl = "0.10.0"
 crossbeam-utils = "0.5.0"
 
-[dependencies.sdl2]
-version = "0.31.0"
-features = ["bundled", "static-link"]
+[features]
+static-link = ["sdl2/bundled", "sdl2/static-link"]
